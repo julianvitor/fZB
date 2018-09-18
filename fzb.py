@@ -43,17 +43,18 @@ def rec ():
     beta = int(100)             # Simple brightness control 0 -100
      
 
-    img = cv2.imread('frame566.png')
+    img = cv2.imread('imagem4.jpg')
      
     mul_img = cv2.multiply(img, np.array([alpha]))                    # mul_img = img*alpha
     new_img = cv2.add(mul_img, beta)                                  # new_img = img*alpha + beta
     cv2.imwrite('contraste.png', new_img)
+
+
+
     
-
-
-
-
-
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) #convert color for pil
+    img_pil = Image.fromarray(img) #convert fo pil
+    
 
 
 
@@ -85,8 +86,9 @@ def rec ():
     # reconvertendo o retorno do threshold em um objeto do tipo PIL.Image
     binimagem = Image.fromarray(th3) 
 
+    os.remove("contraste.png")
 
-
+    
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -101,7 +103,7 @@ def rec ():
 
     
     
-    its = pytesseract.image_to_string(binimagem)  # Extraindo o texto da imagem
+    its = pytesseract.image_to_string(binimagem, lang='por')  # Extraindo o texto da imagem
 
     cv2.imwrite('imagem4pp.png', th3)
     
