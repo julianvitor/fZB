@@ -3,12 +3,12 @@ import numpy as np
 import os
 from PIL import Image  # Importando o módulo Pillow para abrir a imagem no script
 import pytesseract  # Módulo para a utilização da tecnologia OCR
-import math
+
 
 
 def vtf():
     # Local para carregar o video.
-    cap = cv2.VideoCapture('video3.mp4')
+    cap = cv2.VideoCapture('video.mp4')
 
 
     #criando diretorio temporario para armazenar frames

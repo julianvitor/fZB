@@ -17,7 +17,7 @@ except OSError:
 
 
 while success:
-  vidcap.set(cv2.CAP_PROP_POS_MSEC,(count*200))
+  vidcap.set(cv2.CAP_PROP_POS_MSEC,(count*500))
   success,image = vidcap.read()
 
   ## Stop when last frame is identified
@@ -26,5 +26,5 @@ while success:
       break
 
   cv2.imwrite("./data/frame%d.png" % count, image)     # save frame as PNG file
-  print (count)
+  print ("Creating... frame"+str(count)+".png")
   count += 1
