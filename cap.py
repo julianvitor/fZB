@@ -33,17 +33,6 @@ while success:
     print('Creating...' + name)
     count += 1
 
-
-
-
-
-
-
-########################################################################33
-
-
-
-
     alpha = float(3)  # Controle de contraste 1-3
     beta = int(100)  # Controle de brilho 0 -100
 
