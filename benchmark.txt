@@ -1,0 +1,4 @@
+fzb.py = real	2m27,561s; user	2m34,331s; sys	0m7,172s
+exp.py = real	2m13,540s; user	5m52,470s ;sys	0m5,722s
+
+
