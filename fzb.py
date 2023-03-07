@@ -1,88 +1,84 @@
 import cv2
 import numpy as np
 import os
-from PIL import Image  # Importando o módulo Pillow para abrir a imagem no script
-import pytesseract  # Módulo para a utilização da tecnologia OCR
+from PIL import Image
+import pytesseract
 
 
+def vtf(video_path):
+    # Carrega o vídeo
+    cap = cv2.VideoCapture(video_path)
 
-def vtf():
-    # Local para carregar o video.
-    cap = cv2.VideoCapture('video.mp4')
-
-
-    #criando diretorio temporario para armazenar frames
+    # Cria um diretório temporário para armazenar os frames
     try:
         if not os.path.exists('data'):
             os.makedirs('data')
     except OSError:
-        print('Error: Creating directory of data')
+        print('Error: creating directory of data')
+    
+    # Loop para processar cada frame do vídeo
     ret = True
     currentFrame = 0
 
-    while (ret):
-        # Capture frame-by-frame
+    while ret:
+        # Captura o frame atual
         ret, frame = cap.read()
 
-        # Saves image of the current frame in png file
-        name = './data/frame' + str(currentFrame) + '.png'
-        print('Creating...' + name)
-        cv2.imwrite(name, frame)
+        if ret:
+            # Salva a imagem do frame atual em um arquivo PNG
+            name = f'./data/frame{currentFrame}.png'
+            print(f'Creating {name}...')
+            cv2.imwrite(name, frame)
+            currentFrame += 1
 
-        # To stop duplicate images
-        currentFrame += 1
-
-    # When everything done, release the capture
+    # Libera a captura de vídeo e destrói as janelas abertas pelo OpenCV
     cap.release()
     cv2.destroyAllWindows()
 
 
-def rec():
-    alpha = float(3)  # Simple contrast control 1-3
-    beta = int(100)  # Simple brightness control 0 -100
+def rec(frame_path):
+    # Ajusta o contraste e o brilho da imagem
+    alpha = 3.0  # Fator de controle do contraste (1.0 = sem alteração)
+    beta = 100  # Fator de controle do brilho (0 = preto, 100 = original)
+    img = cv2.imread(frame_path)
+    img_contrast = cv2.addWeighted(img, alpha, np.zeros_like(img), 0, beta)
 
-    img = cv2.imread('frame566.png')
+    # Converte a imagem para escala de cinza
+    img_gray = cv2.cvtColor(img_contrast, cv2.COLOR_BGR2GRAY)
 
-    mul_img = cv2.multiply(img, np.array([alpha]))  # mul_img = img*alpha
-    new_img = cv2.add(mul_img, beta)  # new_img = img*alpha + beta
-    cv2.imwrite('contraste.png', new_img)
+    # Aplica a binarização adaptativa
+    thresh = cv2.adaptiveThreshold(img_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # convert color for pil
-    img_pil = Image.fromarray(img)  # convert fo pil
+    # Converte a imagem para o formato PIL.Image
+    binimagem = Image.fromarray(thresh)
 
-    img = Image.open('contraste.png')
+    # Remove o arquivo de contraste
+    os.remove(frame_path)
 
-    # convertendo em um array editável de numpy[x, y, CANALS]
-    npimg = np.asarray(img).astype(np.uint8)
+    # Extrai o texto da imagem usando OCR
+    its = pytesseract.image_to_string(binimagem)
 
-    # diminuição dos ruidos antes da binarização
-    npimg[:, :, 0] = 0  # zerando o canal R (RED)
-    npimg[:, :, 2] = 0  # zerando o canal B (BLUE)
-
-    # atribuição em escala de cinza
-    im = cv2.cvtColor(npimg, cv2.COLOR_RGB2GRAY)
-
-    # aplicação da truncagem binária para a intensidade
-    # pixels de intensidade de cor abaixo de 127 serão convertidos para 0 (PRETO)
-    # pixels de intensidade de cor acima de 127 serão convertidos para 255 (BRANCO)
-    # A atrubição do THRESH_OTSU incrementa uma análise inteligente dos nivels de truncagem
-    ret, thresh = cv2.threshold(im, 127, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-    th3 = cv2.adaptiveThreshold(thresh, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    # reconvertendo o retorno do threshold em um objeto do tipo PIL.Image
-    binimagem = Image.fromarray(th3)
-
-    os.remove("contraste.png")
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    its = pytesseract.image_to_string(binimagem)  # Extraindo o texto da imagem
-
-    cv2.imwrite('imagem4pp.png', th3)
+    # Salva a imagem binarizada em um arquivo PNG
+    cv2.imwrite('imagem4pp.png', thresh)
 
     print(its)
 
 
-vtf()
+def main(video_path):
+    # Gera os frames do vídeo
+    vtf(video_path)
+
+    # Processa cada frame e extrai o texto
+    for i in range(len(os.listdir('data'))):
+        frame_path = f'data/frame{i}.png'
+        rec(frame_path)
+
+    # Remove os arquivos temporários
+    for file in os.listdir('data'):
+        os.remove(os.path.join('data', file))
+    os.rmdir('data')
+
+
+if __name__ == '__main__':
+    main('video.mp4')
