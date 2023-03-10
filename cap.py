@@ -1,87 +1,75 @@
 import cv2
 import numpy as np
 import os
-from PIL import Image  # Importando o módulo Pillow para abrir a imagem no script
-import pytesseract  # Módulo para a utilização da tecnologia OCR
+from PIL import Image
+import pytesseract
 
+# Abrindo o arquivo de vídeo
+video = cv2.VideoCapture('video.mp4')
 
-
-vidcap = cv2.VideoCapture('video.mp4')
-count = 0
+# Contador de frames e verificação se a leitura do vídeo foi bem sucedida
+frame_count = 0
 success = True
+
+# Criação do diretório para armazenar os frames, caso ele não exista
 try:
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    if not os.path.exists('dados'):
+        os.makedirs('dados')
 except OSError:
-    print('Error: Creating directory of data')
-
-
-
+    print('Erro: Não foi possível criar o diretório de dados')
 
 while success:
-    vidcap.set(cv2.CAP_PROP_POS_MSEC,(count*500))#controla a quantidade quadros, 1000 = 1 quadro a cada 1000ms
-    success,frame = vidcap.read()
+    # Capturando o frame atual a cada 500ms
+    video.set(cv2.CAP_PROP_POS_MSEC, (frame_count * 500))
+    success, frame = video.read()
 
-    name = './data/frame' + str(count) + '.png'
+    # Nome do arquivo para salvar o frame
+    nome_arquivo = f'./dados/frame{frame_count}.png'
 
-    # Encerra quando identifica o ultimo frame
-    image_last = cv2.imread("frame{}.png".format(count-1))
-    if np.array_equal(frame,image_last):
-        break
+    # Encerra o loop quando identifica o último frame
+    if frame_count > 0:
+        frame_anterior = cv2.imread(f'./dados/frame{frame_count - 1}.png')
+        if np.array_equal(frame, frame_anterior):
+            break
 
-    cv2.imwrite(name, frame)     # save frame as PNG file
-    print('Creating...' + name)
-    count += 1
+    # Salvando o frame como arquivo PNG
+    cv2.imwrite(nome_arquivo, frame)
+    print(f'Criando {nome_arquivo}')
+    frame_count += 1
 
-    alpha = float(3)  # Controle de contraste 1-3
-    beta = int(100)  # Controle de brilho 0 -100
+    # Ajuste de contraste e brilho da imagem
+    contraste = float(3)
+    brilho = int(100)
+    img = cv2.imread(str(nome_arquivo))
 
-    img = cv2.imread(str(name))
+    img_ajustada = cv2.multiply(img, np.array([contraste]))
+    img_ajustada = cv2.add(img_ajustada, brilho)
+    cv2.imwrite('./dados/contraste.png', img_ajustada)
 
-    mul_img = cv2.multiply(img, np.array([alpha]))  # mul_img = img*alpha
-    new_img = cv2.add(mul_img, beta)  # new_img = img*alpha + beta
-    cv2.imwrite('./data/contraste.png', new_img)
+    # Convertendo a imagem para o formato PIL
+    img_pil = Image.open(nome_arquivo).convert('RGB')
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Converter cor para pil
-    img_pil = Image.fromarray(img)  # Converter para pil
+    # Carregando a imagem ajustada de contraste e brilho como um array numpy
+    img_ajustada = Image.open('./dados/contraste.png')
+    np_img = np.asarray(img_ajustada).astype(np.uint8)
 
-    img = Image.open('./data/contraste.png')
+    # Aplicando limiarização na imagem em escala de cinza
+    np_img[:, :, 0] = 0
+    np_img[:, :, 2] = 0
+    im_cinza = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+    ret, thresh = cv2.threshold(im_cinza, 127, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    thresh_adaptativa = cv2.adaptiveThreshold(thresh, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    bin_imagem = Image.fromarray(thresh_adaptativa)
 
-    # convertendo em um array editável de numpy[x, y, CANALS]
-    npimg = np.asarray(img).astype(np.uint8)
+    # Convertendo a imagem binarizada para texto utilizando OCR
+    texto_imagem = pytesseract.image_to_string(bin_imagem)
 
-    # diminuição dos ruidos antes da binarização
-    npimg[:, :, 0] = 0  # zerando o canal R (RED)
-    npimg[:, :, 2] = 0  # zerando o canal B (BLUE)
+    # Salvando o texto extraído em um arquivo de texto
+    with open('./dados/dados.txt', 'a') as arquivo:
+        arquivo.write(texto_imagem)
 
-    # atribuição em escala de cinza
-    im = cv2.cvtColor(npimg, cv2.COLOR_RGB2GRAY)
+    # Excluindo os arquivos temporários
+    os.remove("./dados/contraste.png")
+    os.remove(nome_arquivo)
 
-    # aplicação da truncagem binária para a intensidade
-    # pixels de intensidade de cor abaixo de 127 serão convertidos para 0 (PRETO)
-    # pixels de intensidade de cor acima de 127 serão convertidos para 255 (BRANCO)
-    # A atrubição do THRESH_OTSU incrementa uma analise inteligente dos nivels de truncagem
-    ret, thresh = cv2.threshold(im, 127, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-    th3 = cv2.adaptiveThreshold(thresh, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-
-    # reconvertendo o retorno do threshold em um objeto do tipo PIL.Image
-    binimagem = Image.fromarray(th3)
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    its = pytesseract.image_to_string(binimagem)  # Extraindo o texto da imagem
-
-    file = open('./data/data.txt', 'r') #criando arquivo de texto para salvar o que foi lido
-
-    content = file.readlines()
-    content.append(its)
-    file = open('./data/data.txt', 'w')
-    file.writelines(content)
-
-    os.remove("./data/contraste.png")
-    os.remove(name)
-    file.close()
-
-
+print('Extração de texto concluída')
